@@ -1,0 +1,324 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id                     String    @id @default(cuid())
+    email                  String    @unique
+    username               String    @unique
+    firstName              String
+    lastName               String
+    password               String
+    avatar                 String?
+    bio                    String?
+    location               String?
+    website                String?
+    githubUsername         String?
+    linkedinUrl            String?
+    twitterHandle          String?
+    isEmailVerified        Boolean   @default(false)
+    emailVerificationToken String?
+    resetPasswordToken     String?
+    resetPasswordExpires   DateTime?
+    role                   UserRole  @default(USER)
+    isActive               Boolean   @default(true)
+    xpPoints               Int       @default(0)
+    level                  Int       @default(1)
+    streak                 Int       @default(0)
+    lastActiveDate         DateTime  @default(now())
+    lastLoginAt            DateTime?
+    createdAt              DateTime  @default(now())
+    updatedAt              DateTime  @updatedAt
+
+    // Relations
+    enrollments  Enrollment[]
+    submissions  Submission[]
+    progress     Progress[]
+    certificates Certificate[]
+    posts        Post[]
+    comments     Comment[]
+    likes        Like[]
+    achievements UserAchievement[]
+
+    @@map("users")
+}
+
+model Track {
+    id               String     @id @default(cuid())
+    title            String
+    slug             String     @unique
+    description      String     @db.Text
+    shortDescription String?
+    thumbnail        String?
+    difficulty       Difficulty
+    category         Category
+    estimatedHours   Int
+    price            Float      @default(0)
+    isPublished      Boolean    @default(false)
+    isPremium        Boolean    @default(false)
+    prerequisites    String?    @db.Text
+    learningOutcomes String?    @db.Text
+    tags             String?    @db.Text
+    sortOrder        Int        @default(0)
+    createdAt        DateTime   @default(now())
+    updatedAt        DateTime   @updatedAt
+
+    // Relations
+    lessons     Lesson[]
+    enrollments Enrollment[]
+
+    @@map("tracks")
+}
+
+model Lesson {
+    id          String   @id @default(cuid())
+    title       String
+    slug        String
+    content     String   @db.Text
+    videoUrl    String?
+    duration    Int? // in minutes
+    sortOrder   Int
+    isPublished Boolean  @default(false)
+    trackId     String
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    track      Track       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+    challenges Challenge[]
+    progress   Progress[]
+
+    @@unique([trackId, slug])
+    @@map("lessons")
+}
+
+model Challenge {
+    id           String     @id @default(cuid())
+    title        String
+    slug         String     @unique
+    description  String     @db.Text
+    instructions String     @db.Text
+    starterCode  String?    @db.Text
+    solutionCode String?    @db.Text
+    testCases    String     @db.Text // JSON
+    difficulty   Difficulty
+    category     Category
+    points       Int        @default(10)
+    timeLimit    Int? // in minutes
+    memoryLimit  Int? // in MB
+    isPublished  Boolean    @default(false)
+    tags         String?    @db.Text
+    lessonId     String?
+    createdAt    DateTime   @default(now())
+    updatedAt    DateTime   @updatedAt
+
+    // Relations
+    lesson      Lesson?      @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+    submissions Submission[]
+
+    @@map("challenges")
+}
+
+model Enrollment {
+    id          String    @id @default(cuid())
+    userId      String
+    trackId     String
+    enrolledAt  DateTime  @default(now())
+    completedAt DateTime?
+    progress    Float     @default(0) // percentage
+
+    // Relations
+    user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+    track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, trackId])
+    @@map("enrollments")
+}
+
+model Progress {
+    id           String    @id @default(cuid())
+    userId       String
+    lessonId     String
+    isCompleted  Boolean   @default(false)
+    timeSpent    Int       @default(0) // in minutes
+    lastAccessed DateTime  @default(now())
+    completedAt  DateTime?
+
+    // Relations
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, lessonId])
+    @@map("progress")
+}
+
+model Submission {
+    id            String           @id @default(cuid())
+    userId        String
+    challengeId   String
+    code          String           @db.Text
+    language      String
+    status        SubmissionStatus
+    score         Float?
+    executionTime Int? // in milliseconds
+    memoryUsed    Int? // in MB
+    testResults   String?          @db.Text // JSON
+    feedback      String?          @db.Text
+    submittedAt   DateTime         @default(now())
+
+    // Relations
+    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+    @@map("submissions")
+}
+
+model Certificate {
+    id               String   @id @default(cuid())
+    userId           String
+    trackId          String?
+    title            String
+    description      String?
+    issuedAt         DateTime @default(now())
+    certificateUrl   String?
+    verificationCode String   @unique
+
+    // Relations
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("certificates")
+}
+
+model Achievement {
+    id          String   @id @default(cuid())
+    title       String
+    description String
+    icon        String?
+    badge       String?
+    points      Int      @default(0)
+    criteria    String   @db.Text // JSON
+    isActive    Boolean  @default(true)
+    createdAt   DateTime @default(now())
+
+    // Relations
+    userAchievements UserAchievement[]
+
+    @@map("achievements")
+}
+
+model UserAchievement {
+    id            String   @id @default(cuid())
+    userId        String
+    achievementId String
+    earnedAt      DateTime @default(now())
+
+    // Relations
+    user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, achievementId])
+    @@map("user_achievements")
+}
+
+model Post {
+    id          String   @id @default(cuid())
+    title       String
+    content     String   @db.Text
+    excerpt     String?
+    authorId    String
+    isPublished Boolean  @default(false)
+    tags        String?  @db.Text
+    views       Int      @default(0)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    comments Comment[]
+    likes    Like[]
+
+    @@map("posts")
+}
+
+model Comment {
+    id        String   @id @default(cuid())
+    content   String   @db.Text
+    authorId  String
+    postId    String
+    parentId  String? // for nested comments
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    author  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+    parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+    replies Comment[] @relation("CommentReplies")
+    likes   Like[]
+
+    @@map("comments")
+}
+
+model Like {
+    id        String   @id @default(cuid())
+    userId    String
+    postId    String?
+    commentId String?
+    createdAt DateTime @default(now())
+
+    // Relations
+    user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+    comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, postId])
+    @@unique([userId, commentId])
+    @@map("likes")
+}
+
+// Enums
+enum UserRole {
+    USER
+    ADMIN
+    INSTRUCTOR
+}
+
+enum Difficulty {
+    BEGINNER
+    INTERMEDIATE
+    ADVANCED
+    EXPERT
+}
+
+enum Category {
+    WEB_DEVELOPMENT
+    MOBILE_DEVELOPMENT
+    DATA_SCIENCE
+    MACHINE_LEARNING
+    DEVOPS
+    CYBERSECURITY
+    GAME_DEVELOPMENT
+    BLOCKCHAIN
+    API_DEVELOPMENT
+    DATABASE
+    ALGORITHMS
+    SYSTEM_DESIGN
+}
+
+enum SubmissionStatus {
+    PENDING
+    ACCEPTED
+    WRONG_ANSWER
+    TIME_LIMIT_EXCEEDED
+    MEMORY_LIMIT_EXCEEDED
+    RUNTIME_ERROR
+    COMPILATION_ERROR
+}

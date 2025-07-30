@@ -20,18 +20,18 @@ export default defineEventHandler(async (event) => {
         // Get completed challenges
         const completedChallenges = await prisma.submission.count({
             where: {
-                status: 'APPROVED'
+                status: 'ACCEPTED'
             }
         })
 
         // Get total XP earned
-        const totalXPResult = await prisma.progress.aggregate({
+        const totalXPResult = await prisma.user.aggregate({
             _sum: {
-                totalXP: true
+                xpPoints: true
             }
         })
 
-        const totalXP = totalXPResult._sum.totalXP || 0
+        const totalXP = totalXPResult._sum.xpPoints || 0
 
         // Get new users this month
         const thisMonth = new Date()
@@ -46,11 +46,13 @@ export default defineEventHandler(async (event) => {
             }
         })
 
-        // Get completion rate
-        const usersWithProgress = await prisma.progress.count({
+        // Get completion rate (users who have completed at least one challenge)
+        const usersWithProgress = await prisma.user.count({
             where: {
-                completionPercentage: {
-                    gt: 0
+                submissions: {
+                    some: {
+                        status: 'ACCEPTED'
+                    }
                 }
             }
         })

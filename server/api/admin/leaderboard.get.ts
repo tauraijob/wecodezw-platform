@@ -4,31 +4,34 @@ export default defineEventHandler(async (event) => {
     try {
         const leaderboard = await prisma.user.findMany({
             where: {
-                role: 'STUDENT',
-                progress: {
-                    isNot: null
-                }
+                role: 'USER'
             },
             include: {
-                progress: true
+                progress: true,
+                submissions: {
+                    where: {
+                        status: 'ACCEPTED'
+                    }
+                }
             },
             orderBy: {
-                progress: {
-                    totalXP: 'desc'
-                }
+                xpPoints: 'desc'
             },
             take: 10
         })
 
-        // Transform data and ensure progress exists
+        // Transform data and calculate progress
         const transformedLeaderboard = leaderboard.map(user => {
             const { password, ...userWithoutPassword } = user
+            const completedChallenges = user.submissions.length
+            const totalXP = user.xpPoints || 0
+            
             return {
                 ...userWithoutPassword,
-                progress: user.progress || {
-                    totalXP: 0,
-                    completedChallenges: 0,
-                    completionPercentage: 0
+                progress: {
+                    totalXP,
+                    completedChallenges,
+                    completionPercentage: 0 // Will be calculated based on available tracks
                 }
             }
         })

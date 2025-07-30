@@ -116,7 +116,7 @@
                 />
                 <select v-model="filterRole" class="form-glass text-sm">
                   <option value="">All Roles</option>
-                  <option value="STUDENT">Students</option>
+                  <option value="USER">Students</option>
                   <option value="ADMIN">Admins</option>
                 </select>
               </div>

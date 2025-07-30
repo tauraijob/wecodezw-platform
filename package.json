@@ -6,7 +6,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "db:seed": "npx tsx server/utils/seed.ts"
   },
   "devDependencies": {
     "@nuxt/devtools": "latest",

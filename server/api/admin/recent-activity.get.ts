@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
         // Get recent submissions
         const recentSubmissions = await prisma.submission.findMany({
             where: {
-                status: 'APPROVED'
+                status: 'ACCEPTED'
             },
             include: {
                 user: {
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
         // Get recent user registrations
         const recentRegistrations = await prisma.user.findMany({
             where: {
-                role: 'STUDENT'
+                role: 'USER'
             },
             select: {
                 id: true,

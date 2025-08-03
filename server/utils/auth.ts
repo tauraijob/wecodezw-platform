@@ -27,6 +27,28 @@ export const verifyToken = async (token: string): Promise<any> => {
     }
 }
 
+export const verifyAdminToken = async (event: any): Promise<any> => {
+    try {
+        // Get token from Authorization header
+        const authHeader = getHeader(event, 'authorization')
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return null
+        }
+
+        const token = authHeader.substring(7)
+        const user = await verifyToken(token)
+
+        if (!user || user.role !== 'ADMIN') {
+            return null
+        }
+
+        return user
+    } catch (error) {
+        console.error('Admin token verification error:', error)
+        return null
+    }
+}
+
 export const generateToken = (payload: JWTPayload): string => {
     return jwt.sign(payload, process.env.JWT_SECRET!, {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d'

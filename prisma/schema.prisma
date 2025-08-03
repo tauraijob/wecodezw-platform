@@ -47,6 +47,21 @@ model User {
     comments     Comment[]
     likes        Like[]
     achievements UserAchievement[]
+    
+    // School and Club Relations
+    schoolAdmin   School[]   @relation("SchoolAdmin")
+    schoolStudents School[]  @relation("SchoolStudents")
+    schoolApprover School[]  @relation("SchoolApprover")
+    clubCreator   Club[]     @relation("ClubCreator")
+    clubMembers   ClubMember[]
+    
+    // Course Relations
+    createdCourses Course[]
+    courseEnrollments CourseEnrollment[]
+    quizAttempts QuizAttempt[]
+    examAttempts ExamAttempt[]
+    userAnswers UserAnswer[]
+    aiCourseRequests AICourseRequest[]
 
     @@map("users")
 }
@@ -74,8 +89,47 @@ model Track {
     // Relations
     lessons     Lesson[]
     enrollments Enrollment[]
+    courses     Course[]
+    certificates Certificate[]
 
     @@map("tracks")
+}
+
+model Course {
+    id               String     @id @default(cuid())
+    title            String
+    slug             String     @unique
+    description      String     @db.Text
+    shortDescription String?
+    thumbnail        String?
+    difficulty       Difficulty
+    category         Category
+    estimatedHours   Int
+    price            Float      @default(0)
+    isPublished      Boolean    @default(false)
+    isPremium        Boolean    @default(false)
+    prerequisites    String?    @db.Text
+    learningOutcomes String?    @db.Text
+    tags             String?    @db.Text
+    sortOrder        Int        @default(0)
+    isAIGenerated    Boolean    @default(false)
+    aiRequestId      String?    @unique
+    createdAt        DateTime   @default(now())
+    updatedAt        DateTime   @updatedAt
+
+    // Relations
+    creatorId        String
+    creator          User       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    trackId          String?
+    track            Track?     @relation(fields: [trackId], references: [id], onDelete: SetNull)
+    lessons          Lesson[]
+    enrollments      CourseEnrollment[]
+    quizzes          Quiz[]
+    exams            Exam[]
+    certificates     Certificate[]
+    aiRequest        AICourseRequest? @relation(fields: [aiRequestId], references: [id])
+
+    @@map("courses")
 }
 
 model Lesson {
@@ -87,16 +141,19 @@ model Lesson {
     duration    Int? // in minutes
     sortOrder   Int
     isPublished Boolean  @default(false)
-    trackId     String
+    trackId     String?
+    courseId    String?
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
     // Relations
-    track      Track       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+    track      Track?      @relation(fields: [trackId], references: [id], onDelete: Cascade)
+    course     Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
     challenges Challenge[]
     progress   Progress[]
 
     @@unique([trackId, slug])
+    @@unique([courseId, slug])
     @@map("lessons")
 }
 
@@ -127,6 +184,149 @@ model Challenge {
     @@map("challenges")
 }
 
+model Quiz {
+    id           String   @id @default(cuid())
+    title        String
+    description  String?  @db.Text
+    duration     Int? // in minutes
+    passingScore Int      @default(70)
+    isPublished  Boolean  @default(false)
+    maxAttempts  Int      @default(3)
+    courseId     String
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    // Relations
+    course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    questions   Question[]
+    attempts    QuizAttempt[]
+
+    @@map("quizzes")
+}
+
+model Exam {
+    id           String   @id @default(cuid())
+    title        String
+    description  String?  @db.Text
+    duration     Int      // in minutes
+    passingScore Int      @default(70)
+    isPublished  Boolean  @default(false)
+    maxAttempts  Int      @default(1)
+    courseId     String
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    // Relations
+    course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    questions   Question[]
+    attempts    ExamAttempt[]
+
+    @@map("exams")
+}
+
+model Question {
+    id          String        @id @default(cuid())
+    text        String        @db.Text
+    type        QuestionType
+    options     String?       @db.Text // JSON for multiple choice
+    correctAnswer String      @db.Text
+    explanation String?       @db.Text
+    points      Int           @default(1)
+    sortOrder   Int           @default(0)
+    quizId      String?
+    examId      String?
+    createdAt   DateTime      @default(now())
+    updatedAt   DateTime      @updatedAt
+
+    // Relations
+    quiz        Quiz?         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    exam        Exam?         @relation(fields: [examId], references: [id], onDelete: Cascade)
+    userAnswers UserAnswer[]
+
+    @@map("questions")
+}
+
+model QuizAttempt {
+    id          String   @id @default(cuid())
+    userId      String
+    quizId      String
+    score       Float?
+    isPassed    Boolean?
+    startedAt   DateTime @default(now())
+    completedAt DateTime?
+    timeSpent   Int? // in minutes
+
+    // Relations
+    user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    answers     UserAnswer[]
+
+    @@map("quiz_attempts")
+}
+
+model ExamAttempt {
+    id          String   @id @default(cuid())
+    userId      String
+    examId      String
+    score       Float?
+    isPassed    Boolean?
+    startedAt   DateTime @default(now())
+    completedAt DateTime?
+    timeSpent   Int? // in minutes
+
+    // Relations
+    user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    exam        Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+    answers     UserAnswer[]
+
+    @@map("exam_attempts")
+}
+
+model UserAnswer {
+    id              String   @id @default(cuid())
+    userId          String
+    questionId      String
+    answer          String   @db.Text
+    isCorrect       Boolean?
+    pointsEarned    Float?
+    quizAttemptId   String?
+    examAttemptId   String?
+    answeredAt      DateTime @default(now())
+
+    // Relations
+    user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    question        Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    quizAttempt     QuizAttempt? @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+    examAttempt     ExamAttempt? @relation(fields: [examAttemptId], references: [id], onDelete: Cascade)
+
+    @@map("user_answers")
+}
+
+model AICourseRequest {
+    id              String              @id @default(cuid())
+    userId          String
+    title           String
+    description     String              @db.Text
+    category        Category
+    difficulty      Difficulty
+    estimatedHours  Int
+    learningGoals   String              @db.Text
+    targetAudience  String              @db.Text
+    prerequisites   String?             @db.Text
+    status          AICourseRequestStatus @default(PENDING)
+    aiResponse      String?             @db.Text // Generated course content
+    errorMessage    String?             @db.Text
+    processedAt     DateTime?
+    createdAt       DateTime            @default(now())
+    updatedAt       DateTime            @updatedAt
+
+    // Relations
+    user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+    generatedCourse Course?
+
+    @@map("ai_course_requests")
+}
+
 model Enrollment {
     id          String    @id @default(cuid())
     userId      String
@@ -141,6 +341,22 @@ model Enrollment {
 
     @@unique([userId, trackId])
     @@map("enrollments")
+}
+
+model CourseEnrollment {
+    id          String    @id @default(cuid())
+    userId      String
+    courseId    String
+    enrolledAt  DateTime  @default(now())
+    completedAt DateTime?
+    progress    Float     @default(0) // percentage
+
+    // Relations
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, courseId])
+    @@map("course_enrollments")
 }
 
 model Progress {
@@ -185,6 +401,7 @@ model Certificate {
     id               String   @id @default(cuid())
     userId           String
     trackId          String?
+    courseId         String?
     title            String
     description      String?
     issuedAt         DateTime @default(now())
@@ -192,7 +409,9 @@ model Certificate {
     verificationCode String   @unique
 
     // Relations
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    track  Track? @relation(fields: [trackId], references: [id], onDelete: SetNull)
+    course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
     @@map("certificates")
 }
@@ -234,6 +453,7 @@ model Post {
     content     String   @db.Text
     excerpt     String?
     authorId    String
+    clubId      String?
     isPublished Boolean  @default(false)
     tags        String?  @db.Text
     views       Int      @default(0)
@@ -242,6 +462,7 @@ model Post {
 
     // Relations
     author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    club     Club?     @relation(fields: [clubId], references: [id], onDelete: Cascade)
     comments Comment[]
     likes    Like[]
 
@@ -265,6 +486,78 @@ model Comment {
     likes   Like[]
 
     @@map("comments")
+}
+
+model School {
+    id              String   @id @default(cuid())
+    name            String
+    slug            String   @unique
+    email           String   @unique
+    phone           String?
+    address         String   @db.Text
+    city            String
+    country         String   @default("Zimbabwe")
+    website         String?
+    description     String?  @db.Text
+    logo            String?
+    banner          String?
+    isApproved      Boolean  @default(false)
+    approvedAt      DateTime?
+    approvedBy      String?
+    status          SchoolStatus @default(PENDING)
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    admin           User     @relation("SchoolAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+    adminId         String
+    clubs           Club[]
+    students        User[]   @relation("SchoolStudents")
+    approvedByUser  User?    @relation("SchoolApprover", fields: [approvedBy], references: [id])
+
+    @@map("schools")
+}
+
+model Club {
+    id              String   @id @default(cuid())
+    name            String
+    slug            String   @unique
+    description     String   @db.Text
+    logo            String?
+    banner          String?
+    category        ClubCategory
+    maxMembers      Int      @default(50)
+    isActive        Boolean  @default(true)
+    isPublic        Boolean  @default(true)
+    inviteCode      String   @unique
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+    schoolId        String
+    creator         User     @relation("ClubCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId       String
+    members         ClubMember[]
+    posts           Post[]
+
+    @@map("clubs")
+}
+
+model ClubMember {
+    id          String       @id @default(cuid())
+    role        ClubRole     @default(MEMBER)
+    joinedAt    DateTime     @default(now())
+    isActive    Boolean      @default(true)
+
+    // Relations
+    club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+    clubId      String
+    user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId      String
+
+    @@unique([clubId, userId])
+    @@map("club_members")
 }
 
 model Like {
@@ -311,6 +604,14 @@ enum Category {
     DATABASE
     ALGORITHMS
     SYSTEM_DESIGN
+    PROGRAMMING_FUNDAMENTALS
+    FRONTEND_DEVELOPMENT
+    BACKEND_DEVELOPMENT
+    FULL_STACK_DEVELOPMENT
+    CLOUD_COMPUTING
+    ARTIFICIAL_INTELLIGENCE
+    INTERNET_OF_THINGS
+    SOFTWARE_TESTING
 }
 
 enum SubmissionStatus {
@@ -321,4 +622,44 @@ enum SubmissionStatus {
     MEMORY_LIMIT_EXCEEDED
     RUNTIME_ERROR
     COMPILATION_ERROR
+}
+
+enum SchoolStatus {
+    PENDING
+    APPROVED
+    REJECTED
+    SUSPENDED
+}
+
+enum ClubCategory {
+    TECHNOLOGY
+    SCIENCE
+    ARTS
+    SPORTS
+    ACADEMIC
+    CULTURAL
+    ENVIRONMENTAL
+    SOCIAL
+    OTHER
+}
+
+enum ClubRole {
+    ADMIN
+    MODERATOR
+    MEMBER
+}
+
+enum QuestionType {
+    MULTIPLE_CHOICE
+    TRUE_FALSE
+    SHORT_ANSWER
+    ESSAY
+    CODE
+}
+
+enum AICourseRequestStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    FAILED
 }

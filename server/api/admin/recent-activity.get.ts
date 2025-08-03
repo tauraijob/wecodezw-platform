@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
             include: {
                 user: {
                     select: {
+                        id: true,
                         firstName: true,
                         lastName: true,
                         username: true
@@ -17,14 +18,41 @@ export default defineEventHandler(async (event) => {
                 },
                 challenge: {
                     select: {
-                        title: true
+                        id: true,
+                        title: true,
+                        slug: true
                     }
                 }
             },
             orderBy: {
-                createdAt: 'desc'
+                submittedAt: 'desc'
             },
-            take: 5
+            take: 10
+        })
+
+        // Get recent enrollments
+        const recentEnrollments = await prisma.enrollment.findMany({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        username: true
+                    }
+                },
+                track: {
+                    select: {
+                        id: true,
+                        title: true,
+                        slug: true
+                    }
+                }
+            },
+            orderBy: {
+                enrolledAt: 'desc'
+            },
+            take: 10
         })
 
         // Get recent user registrations
@@ -42,31 +70,50 @@ export default defineEventHandler(async (event) => {
             orderBy: {
                 createdAt: 'desc'
             },
-            take: 5
+            take: 10
         })
 
-        // Transform submissions into activity items
-        const submissionActivities = recentSubmissions.map(submission => ({
-            id: `submission-${submission.id}`,
-            type: 'challenge_completed',
-            description: `${submission.user.firstName} ${submission.user.lastName} completed "${submission.challenge.title}"`,
-            createdAt: submission.createdAt
-        }))
-
-        // Transform registrations into activity items
-        const registrationActivities = recentRegistrations.map(user => ({
-            id: `registration-${user.id}`,
-            type: 'user_registered',
-            description: `${user.firstName} ${user.lastName} (@${user.username}) joined the platform`,
-            createdAt: user.createdAt
-        }))
-
         // Combine and sort all activities
-        const allActivities = [...submissionActivities, ...registrationActivities]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .slice(0, 10)
+        const activities = [
+            ...recentSubmissions.map(submission => ({
+                id: `submission-${submission.id}`,
+                type: 'challenge_completed',
+                description: `${submission.user.firstName} ${submission.user.lastName} completed "${submission.challenge.title}"`,
+                createdAt: submission.submittedAt,
+                user: submission.user,
+                metadata: {
+                    challengeTitle: submission.challenge.title,
+                    score: submission.score
+                }
+            })),
+            ...recentEnrollments.map(enrollment => ({
+                id: `enrollment-${enrollment.id}`,
+                type: 'track_started',
+                description: `${enrollment.user.firstName} ${enrollment.user.lastName} started "${enrollment.track.title}"`,
+                createdAt: enrollment.enrolledAt,
+                user: enrollment.user,
+                metadata: {
+                    trackTitle: enrollment.track.title
+                }
+            })),
+            ...recentRegistrations.map(user => ({
+                id: `registration-${user.id}`,
+                type: 'user_registered',
+                description: `${user.firstName} ${user.lastName} joined WeCodeZW`,
+                createdAt: user.createdAt,
+                user: user,
+                metadata: {
+                    username: user.username
+                }
+            }))
+        ]
 
-        return allActivities
+        // Sort by creation date (most recent first) and take top 15
+        const sortedActivities = activities
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 15)
+
+        return sortedActivities
 
     } catch (error) {
         console.error('Error fetching recent activity:', error)

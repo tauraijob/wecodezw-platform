@@ -386,6 +386,53 @@
         outline: none;
     }
 
+    /* Dropdown Options Styling */
+    select option {
+        background-color: #1e293b;
+        color: #ffffff;
+        padding: 8px 12px;
+    }
+
+    select option:hover {
+        background-color: #334155;
+    }
+
+    select option:checked {
+        background-color: #3b82f6;
+        color: #ffffff;
+    }
+
+    /* Admin Dashboard Specific Dropdown Styling */
+    .admin-dropdown {
+        background-color: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        @apply rounded-lg px-3 py-2 text-sm transition-all duration-300;
+    }
+
+    .admin-dropdown:focus {
+        background-color: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+        outline: none;
+    }
+
+    .admin-dropdown option {
+        background-color: #1e293b;
+        color: #ffffff;
+        padding: 8px 12px;
+    }
+
+    .admin-dropdown option:hover {
+        background-color: #334155;
+    }
+
+    .admin-dropdown option:checked {
+        background-color: #3b82f6;
+        color: #ffffff;
+    }
+
     /* Universal Modal Styles */
     .modal-glass {
         background: rgba(15, 23, 42, 0.9);
